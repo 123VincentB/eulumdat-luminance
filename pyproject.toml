@@ -12,6 +12,10 @@ authors = [{ name = "123VincentB" }]
 requires-python = ">=3.9"
 dependencies = [
     "eulumdat-py>=1.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "vl-convert-python>=1.0.0",
+    "Pillow>=10.0.0",
 ]
 keywords = ["eulumdat", "ldt", "photometry", "lighting", "luminance", "cd/m2", "glare"]
 classifiers = [
@@ -29,4 +33,12 @@ Homepage = "https://github.com/123VincentB/eulumdat-luminance"
 dev = [
     "build",
     "twine",
+    "pytest>=7.0",
+    "pytest-cov",
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

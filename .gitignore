@@ -27,3 +27,11 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test outputs (generated files, not source)
+data/output/
+
+# Local scripts / context files
+/tree.py
+/CONTEXT*.md
+/CLAUDE.md
