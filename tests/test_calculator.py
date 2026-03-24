@@ -399,20 +399,6 @@ class TestLuminancePlotSmoke:
         except ImportError:
             pytest.skip("vl-convert-python not installed")
 
-    def test_soellner_svg(self, tmp_path):
-        self._require_vlc()
-        from eulumdat_luminance.plot import LuminancePlot
-        out = tmp_path / "soellner.svg"
-        LuminancePlot(self._make_result()).soellner(out)
-        assert out.exists() and out.stat().st_size > 100
-
-    def test_soellner_png(self, tmp_path):
-        self._require_vlc()
-        from eulumdat_luminance.plot import LuminancePlot
-        out = tmp_path / "soellner.png"
-        LuminancePlot(self._make_result()).soellner(out)
-        assert out.exists() and out.stat().st_size > 100
-
     def test_polar_svg(self, tmp_path):
         self._require_vlc()
         from eulumdat_luminance.plot import LuminancePlot
@@ -429,16 +415,8 @@ class TestLuminancePlotSmoke:
 
     def test_unsupported_format(self, tmp_path):
         from eulumdat_luminance.plot import LuminancePlot
-        with pytest.raises(ValueError, match="Unsupported output format"):
-            LuminancePlot(self._make_result()).soellner(tmp_path / "out.pdf")
-
-    def test_custom_c_planes(self, tmp_path):
-        """soellner() must accept a custom list of C-planes."""
-        self._require_vlc()
-        from eulumdat_luminance.plot import LuminancePlot
-        out = tmp_path / "soellner_custom.svg"
-        LuminancePlot(self._make_result()).soellner(out, c_planes=[0.0, 180.0])
-        assert out.exists() and out.stat().st_size > 100
+        with pytest.raises(ValueError, match="Unsupported format"):
+            LuminancePlot(self._make_result()).polar(tmp_path / "out.pdf")
 
 
 # ---------------------------------------------------------------------------
