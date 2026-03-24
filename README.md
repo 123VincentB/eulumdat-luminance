@@ -5,9 +5,10 @@ Luminance table generation from EULUMDAT (.ldt) photometric files — extension 
 ## Features
 
 - Luminance table (cd/m²) computed from intensity distribution and luminous area geometry
-- Full angle grid (all directions available in the LDT file) or UGR grid (C: 0°–355° in 15° steps, γ: 65°–85° in 5° steps) with interpolation
-- Söllner diagram (SVG + PNG/JPG export): luminance vs. angle γ on a logarithmic scale, per C-plane
-- Polar luminance diagram (SVG + PNG/JPG export): luminance vs. C-angle, one curve per γ angle
+- UGR grid (C: 0°–345° in 15° steps, γ: 65°–85° in 5° steps) with automatic bilinear interpolation when the native LDT resolution does not match
+- Full native grid mode for detailed photometric analysis
+- Polar luminance diagram (SVG + PNG/JPG): all 24 C-planes visible simultaneously, one curve per γ angle, blue gradient palette, optional threshold circle
+- Print-ready output via `PolarStyle.for_print(width_cm, dpi)` — exact physical dimensions for PDF/Word documents
 - CSV and JSON export
 
 ## Installation
@@ -19,38 +20,56 @@ pip install eulumdat-luminance
 ## Dependencies
 
 - [eulumdat-py](https://pypi.org/project/eulumdat-py/) — EULUMDAT parser
-- numpy
-- scipy
-- vl-convert-python
-- Pillow
+- numpy, scipy
+- vl-convert-python — SVG rasterisation
+- Pillow — JPG conversion
 
-## Usage
+## Quick start
 
 ```python
 from pyldt import LdtReader
-from eulumdat_luminance import LuminanceCalculator, LuminancePlot
+from eulumdat_luminance import LuminanceCalculator, LuminancePlot, PolarStyle
 
-# Load an EULUMDAT file
-ldt = LdtReader.read("path/to/file.ldt")
+ldt    = LdtReader.read("luminaire.ldt")
+result = LuminanceCalculator.compute(ldt)
 
-# Compute luminance table (UGR grid by default)
-result = LuminanceCalculator.compute(ldt, full=False)
+print(f"{result.luminaire_name} — {result.maximum:.0f} cd/m²")
 
-print(result.maximum)       # Maximum luminance in cd/m²
-print(result.table)         # numpy array (C × γ)
-print(result.c_axis)        # C-plane angles in degrees
-print(result.g_axis)        # γ angles in degrees
-
-# Export
-result.to_csv("output/luminance.csv")
-result.to_json("output/luminance.json")
-
-# Plot
 plot = LuminancePlot(result)
-plot.soellner("output/soellner.svg")
-plot.soellner("output/soellner.png")
-plot.polar("output/polar.svg")
-plot.polar("output/polar.png")
+plot.polar("polar.svg")
+plot.polar("polar.png")
+
+# Print-ready: 8 cm wide at 300 dpi
+plot.polar("polar_print.png", style=PolarStyle.for_print(width_cm=8, dpi=300))
+```
+
+## Running the tests
+
+```bash
+# All tests (numerical validation + diagram generation)
+pytest
+
+# Numerical tests only (fast, ~10 s)
+pytest tests/test_calculator.py
+
+# Visual diagram generation only
+pytest tests/test_diagrams.py
+
+# Verbose with print output
+pytest -v -s
+
+# Filter by sample
+pytest -k sample_04
+
+# Filter by test type
+pytest -k "svg"                  # SVG generation only
+pytest -k "png"                  # PNG generation only
+pytest -k "for_print"            # print/PDF sizing tests
+pytest -k "Relux"                # Relux numerical validation (30 tests)
+pytest -k "not Smoke"            # exclude smoke tests
+
+# Coverage
+pytest --cov=eulumdat_luminance tests/test_calculator.py
 ```
 
 ## License

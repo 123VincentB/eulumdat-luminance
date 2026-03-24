@@ -2,7 +2,7 @@
 
 This example covers the standard workflow:
 loading an EULUMDAT file, computing the luminance table, inspecting the results,
-exporting to CSV and JSON, and generating diagrams.
+exporting to CSV and JSON, and generating a polar luminance diagram.
 
 ---
 
@@ -33,13 +33,14 @@ result = LuminanceCalculator.compute(ldt, full=False)
 
 The `full` parameter controls the angle grid used for the output:
 
-| `full`            | Grid                                                       | Shape    | Use case                          |
-| ----------------- | ---------------------------------------------------------- | -------- | --------------------------------- |
+| `full`            | Grid                                                         | Shape    | Use case                          |
+| ----------------- | ------------------------------------------------------------ | -------- | --------------------------------- |
 | `False` (default) | UGR grid — C: 0°–345° in 15° steps, γ: 65°–85° in 5° steps | (24, 5)  | Glare evaluation, UGR calculation |
-| `True`            | Native LDT grid — all angles available in the file         | (mc, ng) | Full photometric analysis         |
+| `True`            | Native LDT grid — all angles available in the file           | (mc, ng) | Full photometric analysis         |
 
-When the native grid does not match the UGR grid exactly, bilinear interpolation
-is applied automatically (via `scipy.interpolate.RegularGridInterpolator`).
+When the native LDT resolution does not match the UGR grid exactly (e.g. 2.5°
+step files), bilinear interpolation is applied automatically via
+`scipy.interpolate.RegularGridInterpolator`.
 
 ---
 
@@ -119,7 +120,7 @@ C \ γ (°),65.0,70.0,75.0,80.0,85.0
 
 ---
 
-## 5. Generate diagrams
+## 5. Generate the polar luminance diagram
 
 ```python
 from eulumdat_luminance import LuminancePlot
@@ -127,47 +128,39 @@ from eulumdat_luminance import LuminancePlot
 plot = LuminancePlot(result)
 ```
 
-### Söllner diagram
+### SVG output
 
-The Söllner diagram is the standard representation for glare evaluation:
-- Y axis: γ angle (45°–85°)
-- X axis: luminance in cd/m², logarithmic scale
-- One curve per C-plane
+SVG is the recommended format for embedding in reports or web pages.
+It is resolution-independent and can be scaled without quality loss.
 
 ```python
-# Default: C0, C90, C180, C270
-plot.soellner("data/output/soellner.svg")
-plot.soellner("data/output/soellner.png")
-plot.soellner("data/output/soellner.jpg")
-
-# Custom C-planes
-plot.soellner("data/output/soellner_c0_c180.svg", c_planes=[0.0, 180.0])
-
-# Custom γ range
-plot.soellner("data/output/soellner_wide.svg", g_min=45.0, g_max=85.0)
+plot.polar("data/output/polar.svg")
 ```
 
-### Polar luminance diagram
+### PNG output
 
-The polar diagram shows luminance as a radial value across all C-planes (0°–360°),
-with one curve per γ angle.
+PNG is rasterised from the SVG via `vl-convert-python`.
+The default style uses `scale=2.0` (retina): the SVG canvas is 665 × 615 px
+and the output PNG is approximately 1330 × 1230 px.
 
 ```python
-# Default: all γ angles in the result
-plot.polar("data/output/polar.svg")
 plot.polar("data/output/polar.png")
+```
 
-# Custom γ selection
+### JPG output
+
+```python
+plot.polar("data/output/polar.jpg")   # quality 92, via Pillow
+```
+
+### Selecting γ angles
+
+By default all γ angles available in the result are drawn (65°, 70°, 75°, 80°, 85°
+for a UGR grid).  Pass `g_angles` to restrict the selection:
+
+```python
 plot.polar("data/output/polar_65_85.svg", g_angles=[65.0, 85.0])
 ```
-
-### Export formats
-
-| Extension        | Format      | Notes                           |
-| ---------------- | ----------- | ------------------------------- |
-| `.svg`           | SVG vector  | Recommended for reports and web |
-| `.png`           | PNG raster  | Default scale ×2 (retina)       |
-| `.jpg` / `.jpeg` | JPEG raster | Quality 92, via Pillow          |
 
 ---
 
@@ -178,26 +171,18 @@ from pathlib import Path
 from pyldt import LdtReader
 from eulumdat_luminance import LuminanceCalculator, LuminancePlot
 
-# Paths
-ldt_file = Path("data/input/sample_04.ldt")
+ldt_file   = Path("data/input/sample_04.ldt")
 output_dir = Path("data/output")
 output_dir.mkdir(parents=True, exist_ok=True)
 
-# Load
-ldt = LdtReader.read(str(ldt_file))
-
-# Compute (UGR grid)
+ldt    = LdtReader.read(str(ldt_file))
 result = LuminanceCalculator.compute(ldt, full=False)
 print(f"{result.luminaire_name} — max {result.maximum:.0f} cd/m²")
 
-# Export data
 result.to_csv(output_dir / "luminance.csv")
 result.to_json(output_dir / "luminance.json")
 
-# Export diagrams
 plot = LuminancePlot(result)
-plot.soellner(output_dir / "soellner.svg")
-plot.soellner(output_dir / "soellner.png")
 plot.polar(output_dir / "polar.svg")
 plot.polar(output_dir / "polar.png")
 ```
@@ -209,3 +194,4 @@ plot.polar(output_dir / "polar.png")
 - [eulumdat-py](https://pypi.org/project/eulumdat-py/) — EULUMDAT parser and writer
 - [eulumdat-plot](https://pypi.org/project/eulumdat-plot/) — polar intensity diagrams
 - [eulumdat-ugr](https://pypi.org/project/eulumdat-ugr/) — UGR glare calculation *(coming soon)*
+- `02_resize_and_export.md` — print sizing, font scaling, custom style
