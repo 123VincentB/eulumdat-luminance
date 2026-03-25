@@ -77,10 +77,10 @@ class PolarStyle:
         │  │  title_area  (title + subtitle + maximum)   │ │
         │  ├──────────────────────────┬──────────────────┤ │
         │  │ left_area │   diagram    │   legend_area    │ │
-        │  │           │  (circle)   │                  │ │
-        │  │           │             │                  │ │
+        │  │           │  (circle)    │                  │ │
+        │  │           │              │                  │ │
         │  ├──────────────────────────┤                  │ │
-        │  │  bottom_area            │                  │ │
+        │  │  bottom_area             │                  │ │
         │  └─────────────────────────────────────────────┘ │
         │  padding                                         │
         └──────────────────────────────────────────────────┘
@@ -372,7 +372,7 @@ class LuminancePlot:
         plot = LuminancePlot(result)
         plot.polar("output/polar.svg")
         plot.polar("output/polar.png")
-        plot.polar("output/polar_small.png", style=PolarStyle.for_size(150))
+        plot.polar("output/polar_small.png", style=PolarStyle.for_print(width_cm=6))
     """
 
     def __init__(self, result: LuminanceResult):

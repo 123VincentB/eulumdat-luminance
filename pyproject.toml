@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eulumdat-luminance"
-version = "0.0.1"
+version = "1.0.1"
 description = "Luminance table generation from EULUMDAT (.ldt) photometric files — extension to eulumdat-py"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "123VincentB" }]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "eulumdat-py>=1.0.0",
     "numpy>=1.24.0",
@@ -19,7 +19,7 @@ dependencies = [
 ]
 keywords = ["eulumdat", "ldt", "photometry", "lighting", "luminance", "cd/m2", "glare"]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Physics",
     "License :: OSI Approved :: MIT License",
