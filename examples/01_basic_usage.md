@@ -84,7 +84,41 @@ print(result.table[idx_c, idx_g85]) # → 463 cd/m²
 
 ---
 
-## 4. Export to CSV and JSON
+## 4. Interpolate at arbitrary angles
+
+`LuminanceResult.at()` returns the luminance at any (C, γ) pair by bilinear
+interpolation — the angles do not need to match the stored grid exactly.
+This is useful when integrating with `eulumdat-ugr`, which queries luminance
+at arbitrary directions.
+
+```python
+import numpy as np
+
+# Compute with full=True for best accuracy (native LDT resolution)
+result_full = LuminanceCalculator.compute(ldt, full=True)
+
+# Single point — returns float
+lum = result_full.at(c_deg=12.0, g_deg=67.0)
+print(f"L(C=12°, γ=67°) = {lum:.1f} cd/m²")
+
+# Batch query — returns np.ndarray, same shape as inputs
+lums = result_full.at(
+    c_deg=np.array([0.0, 12.0, 90.0]),
+    g_deg=np.array([65.0, 67.0, 75.0]),
+)
+print(lums)   # array of 3 values in cd/m²
+```
+
+**Notes:**
+- The C axis is extended to 360° internally (copy of C=0°), so angles near
+  the 345°–360° wrap-around are handled correctly.
+- Querying outside the γ range of the stored table raises `ValueError`.
+- Use `full=True` for maximum precision; the UGR grid (`full=False`) works
+  too but has coarser resolution.
+
+---
+
+## 5. Export to CSV and JSON
 
 ```python
 result.to_csv("data/output/luminance.csv")
@@ -120,7 +154,7 @@ C \ γ (°),65.0,70.0,75.0,80.0,85.0
 
 ---
 
-## 5. Generate the polar luminance diagram
+## 6. Generate the polar luminance diagram
 
 ```python
 from eulumdat_luminance import LuminancePlot
@@ -186,7 +220,7 @@ Example output (`sample_04`, 10 cm at 150 dpi, `font_scale=2.11`):
 
 ---
 
-## 6. Full workflow — minimal script
+## 7. Full workflow — minimal script
 
 ```python
 from pathlib import Path
