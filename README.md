@@ -50,7 +50,7 @@ plot.polar("polar_report.png", style=PolarStyle.for_print(width_cm=10, dpi=150, 
 
 ## Example output
 
-![Polar luminance diagram — sample_04, 10 cm at 150 dpi](examples/polar_sample04_word.png)
+![Polar luminance diagram — sample_04, 10 cm at 150 dpi](https://raw.githubusercontent.com/123VincentB/eulumdat-luminance/main/examples/polar_sample04_word.png)
 
 *Sample 04 — linear luminaire 1480 × 63 mm, 12 334 lm — `PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)`*
 
