@@ -44,9 +44,15 @@ plot = LuminancePlot(result)
 plot.polar("polar.svg")
 plot.polar("polar.png")
 
-# Print-ready: 8 cm wide at 300 dpi
-plot.polar("polar_print.png", style=PolarStyle.for_print(width_cm=8, dpi=300))
+# Print-ready: 10 cm at 150 dpi, fonts equivalent to Arial 9pt
+plot.polar("polar_report.png", style=PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11))
 ```
+
+## Example output
+
+![Polar luminance diagram — sample_04, 10 cm at 150 dpi](examples/polar_sample04_word.png)
+
+*Sample 04 — linear luminaire 1480 × 63 mm, 12 334 lm — `PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)`*
 
 ## Running the tests
 
@@ -54,11 +60,11 @@ plot.polar("polar_print.png", style=PolarStyle.for_print(width_cm=8, dpi=300))
 # All tests (numerical validation + diagram generation)
 pytest
 
-# Numerical tests only (fast, ~10 s)
+# Numerical tests only (fast)
 pytest tests/test_calculator.py
 
-# Visual diagram generation only
-pytest tests/test_diagrams.py
+# Diagram generation only
+pytest tests/test_polar_diagram.py
 
 # Verbose with print output
 pytest -v -s
@@ -69,7 +75,8 @@ pytest -k sample_04
 # Filter by test type
 pytest -k "svg"                  # SVG generation only
 pytest -k "png"                  # PNG generation only
-pytest -k "for_print"            # print/PDF sizing tests
+pytest -k "for_print"            # print sizing test (8 cm / 300 dpi)
+pytest -k "word"                 # Word/PDF report test (10 cm / 150 dpi)
 pytest -k "Relux"                # Relux numerical validation (30 tests)
 pytest -k "not Smoke"            # exclude smoke tests
 

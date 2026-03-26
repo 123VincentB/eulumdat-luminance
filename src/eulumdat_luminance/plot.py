@@ -141,23 +141,30 @@ class PolarStyle:
     legend_bar_height : int
         Height of the gradient bar.  Default 200.
     curve_stroke_width : float
-        Stroke width of luminance curves.  Default 1.5.
+        Stroke width of luminance curves.  Default 2.5.
     grid_stroke_width : float
-        Stroke width of concentric rings.  Default 0.5.
+        Stroke width of concentric rings.  Default 1.0.
     spoke_stroke_width : float
-        Stroke width of spokes.  Default 0.4.
+        Stroke width of spokes.  Default 0.8.
     grid_color : str
         Color for rings and spokes.  Default "#cccccc".
+    outer_ring_color : str or None
+        Color for the outermost concentric ring.  None falls back to
+        ``grid_color``.  Default "#000000".
     threshold : float or None
         Threshold circle in cd/m².  Default 3000.0.  Pass None to disable.
     threshold_color : str
         Color for the threshold circle.  Default "#cc0000".
     threshold_stroke_width : float
-        Stroke width of the threshold circle.  Default 1.2.
+        Stroke width of the threshold circle.  Default 1.8.
     threshold_dash : str
         SVG stroke-dasharray for the threshold circle.  Default "6,4".
     g_colors : dict or None
         Mapping gamma (float) -> hex color string.
+    angle_label_gap : int
+        Extra radial offset (px, can be negative) added to the angle labels
+        distance formula.  Use negative values to bring labels closer to the
+        circle.  Default -4.
     scale : float
         Rasterisation scale for PNG/JPG export.  Default 2.0.
     """
@@ -187,15 +194,17 @@ class PolarStyle:
         legend_label_font_size: int = 10,
         legend_bar_width: int = 16,
         legend_bar_height: int = 200,
-        curve_stroke_width: float = 1.5,
-        grid_stroke_width: float = 0.5,
-        spoke_stroke_width: float = 0.4,
+        curve_stroke_width: float = 2.5,
+        grid_stroke_width: float = 1.0,
+        spoke_stroke_width: float = 0.8,
         grid_color: str = "#cccccc",
+        outer_ring_color: str | None = "#000000",
         threshold: float | None = 3000.0,
         threshold_color: str = "#cc0000",
-        threshold_stroke_width: float = 1.2,
+        threshold_stroke_width: float = 1.8,
         threshold_dash: str = "6,4",
         g_colors: dict | None = None,
+        angle_label_gap: int = -4,
         scale: float = 2.0,
     ):
         self.diagram_r = diagram_r
@@ -222,11 +231,13 @@ class PolarStyle:
         self.grid_stroke_width = grid_stroke_width
         self.spoke_stroke_width = spoke_stroke_width
         self.grid_color = grid_color
+        self.outer_ring_color = outer_ring_color
         self.threshold = threshold
         self.threshold_color = threshold_color
         self.threshold_stroke_width = threshold_stroke_width
         self.threshold_dash = threshold_dash
         self.g_colors = g_colors if g_colors is not None else dict(_G_COLORS)
+        self.angle_label_gap = angle_label_gap
         self.scale = scale
 
     # ------------------------------------------------------------------
@@ -289,10 +300,14 @@ class PolarStyle:
         """
         Create a PolarStyle sized for print/PDF output.
 
-        All numeric parameters scale proportionally from the reference canvas
-        width (665 SVG units = 10+35+250*2+110+10).  ``scale`` is always 1.0:
-        the SVG is generated at the exact target resolution without retina
-        doubling.
+        Geometry parameters scale with ``k = width_px / 665``.  Font sizes
+        scale with ``fk = k * font_scale``.  Legend area scales with ``k``
+        only (not ``fk``) to avoid excessive white space when ``font_scale``
+        is large.  The legend bar is automatically shifted right to clear the
+        C=0° angle label.  ``scale`` is always 1.0: 1 SVG unit = 1 px.
+
+        When ``font_scale > 1`` the canvas becomes wider than ``width_cm``
+        because text areas (title, left, bottom) grow with ``fk``.
 
         Parameters
         ----------
@@ -301,57 +316,76 @@ class PolarStyle:
         dpi : int, optional
             Output resolution in dots per inch.  Default 300 (print quality).
             Use 150 for screen/web, 300 for standard print, 600 for high-res.
+        font_scale : float, optional
+            Additional multiplier applied to all font sizes and text areas.
+            Use this to match a specific point size in a target document.
+            Example: ``font_scale=2.11`` gives Arial 9pt at 150 dpi.
         **kwargs
             Override any parameter after scaling (e.g. ``threshold=None``).
+            Note: stroke-width parameters cannot be overridden via kwargs
+            (they are set explicitly); adjust them on the returned object.
 
         Examples
         --------
         ::
 
+            # 10 cm at 150 dpi, fonts equivalent to Arial 9pt
+            style = PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)
+
             # 8 cm at 300 dpi (~945 px) — standard datasheet
             style = PolarStyle.for_print(width_cm=8)
 
-            # 12 cm at 150 dpi (~709 px) — screen / web report
-            style = PolarStyle.for_print(width_cm=12, dpi=150)
-
-            # 8 cm, no threshold circle
+            # Disable threshold circle
             style = PolarStyle.for_print(width_cm=8, threshold=None)
-
-            # 8 cm with larger fonts (readable at 10pt in Word/PDF)
-            style = PolarStyle.for_print(width_cm=8, font_scale=2.5)
         """
         # Target canvas width in pixels (scale=1.0 -> 1 SVG unit = 1 px)
         width_px = width_cm / 2.54 * dpi
 
-        # Canvas width at reference (k=1):
+        # Reference canvas width at k=1:
         #   padding + left_area + r*2 + legend_area + padding
         #   = 10 + 35 + 500 + 110 + 10 = 665
         REF_CANVAS_W = 10 + 35 + cls._REF_R * 2 + 110 + 10  # 665
         k = width_px / REF_CANVAS_W
         diagram_r = max(1, round(cls._REF_R * k))
 
-        # fk combines geometry scale (k) and font readability scale
+        # fk combines geometry scale and font readability scale
         fk = k * font_scale
+
+        # Legend area scales with k only — avoids giant white space when
+        # font_scale > 1 (fonts grow but bar content width does not).
+        legend_area = round(110 * k)
+
+        # Auto-position legend to the right of the C=0° angle label.
+        # C=0° label (text-anchor=start) is the rightmost: starts at label_r,
+        # extends ~1x font_size to the right.  The 0.18 factor converts
+        # legend_area into a gap from the circle edge to the legend bar.
+        angle_font = round(11 * fk)
+        label_right = diagram_r * 0.98 + angle_font - 4 + angle_font + 10
+        legend_offset_x = max(0, round(label_right - (diagram_r + legend_area * 0.18)))
+
         return cls(
             diagram_r=diagram_r,
             padding=round(10 * k),
-            # Areas that contain text must scale with fk, not k
+            # Text areas scale with fk (font size drives their height/width)
             title_area_height=round(70 * fk),
-            legend_area_width=round(110 * fk),
+            legend_area_width=legend_area,
             bottom_area_height=round(35 * fk),
             left_area_width=round(35 * fk),
             title_font_size=round(14 * fk),
             subtitle_font_size=round(12 * fk),
-            angle_label_font_size=round(11 * fk),
+            angle_label_font_size=angle_font,
             ring_label_font_size=round(10 * fk),
             legend_title_font_size=round(11 * fk),
             legend_label_font_size=round(10 * fk),
             legend_bar_width=round(16 * k),
             legend_bar_height=round(200 * k),
-            curve_stroke_width=round(1.5 * k, 2),
-            grid_stroke_width=round(0.5 * k, 2),
-            spoke_stroke_width=round(0.4 * k, 2),
-            threshold_stroke_width=round(1.2 * k, 2),
+            # Stroke widths scale with k so physical pt size is constant
+            # across dpi values.  Base values match ~1.2/0.5/0.4/0.9 pt.
+            curve_stroke_width=round(2.5 * k, 2),
+            grid_stroke_width=round(1.0 * k, 2),
+            spoke_stroke_width=round(0.8 * k, 2),
+            threshold_stroke_width=round(1.8 * k, 2),
+            legend_offset_x=legend_offset_x,
             scale=1.0,
             **kwargs,
         )
@@ -526,11 +560,13 @@ class LuminancePlot:
     def _layer_grid(self, ring_values, r_max, r, s: PolarStyle) -> str:
         """Concentric rings and spokes."""
         parts: list[str] = []
+        outer_color = s.outer_ring_color if s.outer_ring_color is not None else s.grid_color
         for rv in ring_values:
             ri = r * rv / r_max
+            color = outer_color if rv == ring_values[-1] else s.grid_color
             parts.append(
                 f'<circle cx="0" cy="0" r="{ri:.2f}" '
-                f'fill="none" stroke="{s.grid_color}" '
+                f'fill="none" stroke="{color}" '
                 f'stroke-width="{s.grid_stroke_width}"/>'
             )
         for c_deg in range(0, 360, 15):
@@ -594,7 +630,7 @@ class LuminancePlot:
 
     def _layer_angle_labels(self, r: int, s: PolarStyle) -> str:
         """C-plane angle labels around the outer ring."""
-        label_r = r * 0.98 + s.angle_label_font_size
+        label_r = r * 0.98 + s.angle_label_font_size + s.angle_label_gap
         parts: list[str] = []
         for c_deg in range(0, 360, 15):
             c_rad = math.radians(c_deg)

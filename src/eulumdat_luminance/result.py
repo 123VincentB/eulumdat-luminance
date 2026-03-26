@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+from scipy.interpolate import RegularGridInterpolator
 
 
 class LuminanceResult:
@@ -34,7 +35,7 @@ class LuminanceResult:
     full : bool
         True  → table covers all angles available in the source LDT file.
         False → table is resampled to the UGR grid
-                (C: 0°–355° in 15° steps, γ: 65°–85° in 5° steps).
+                (C: 0°–345° in 15° steps, γ: 65°–85° in 5° steps).
     luminaire_name : str
         Name of the luminaire, taken from the LDT file header.
     """
@@ -75,6 +76,89 @@ class LuminanceResult:
         self.full = full
         self.luminaire_name = luminaire_name
         self.maximum = float(np.max(self.table))
+        self._interpolator = None  # built lazily on first call to at()
+
+    # ------------------------------------------------------------------
+    # Interpolation
+    # ------------------------------------------------------------------
+
+    def at(
+        self,
+        c_deg: "float | np.ndarray",
+        g_deg: "float | np.ndarray",
+    ) -> "float | np.ndarray":
+        """
+        Interpolate luminance at arbitrary (C, γ) angles.
+
+        Uses bilinear interpolation on the stored table.  The C axis is
+        extended to 360° (copy of C=0°) so angles near the wrap-around
+        (e.g. C=355°) are handled correctly.
+
+        Parameters
+        ----------
+        c_deg : float or np.ndarray
+            C-plane angle(s) in degrees.  Must be in [0°, 360°].
+        g_deg : float or np.ndarray
+            γ angle(s) in degrees.  Must lie within the stored g_axis range.
+
+        Returns
+        -------
+        float
+            For scalar inputs.
+        np.ndarray
+            For array inputs, same shape as the inputs.
+
+        Raises
+        ------
+        ValueError
+            If any (C, γ) point lies outside the interpolation domain.
+
+        Notes
+        -----
+        For best accuracy, compute the result with ``full=True`` so that the
+        interpolation uses the full native LDT resolution rather than the
+        coarser UGR grid.
+
+        Examples
+        --------
+        ::
+
+            result = LuminanceCalculator.compute(ldt, full=True)
+
+            # Single point
+            lum = result.at(c_deg=12.0, g_deg=67.0)
+
+            # Batch query (vectorised)
+            lums = result.at(
+                c_deg=np.array([0.0, 12.0, 90.0]),
+                g_deg=np.array([65.0, 67.0, 75.0]),
+            )
+        """
+        if self._interpolator is None:
+            self._interpolator = self._build_interpolator()
+
+        scalar = np.isscalar(c_deg) and np.isscalar(g_deg)
+        c = np.atleast_1d(np.asarray(c_deg, dtype=np.float64)).ravel()
+        g = np.atleast_1d(np.asarray(g_deg, dtype=np.float64)).ravel()
+        values = self._interpolator(np.stack([c, g], axis=-1))
+        return float(values[0]) if scalar else values
+
+    def _build_interpolator(self) -> RegularGridInterpolator:
+        """
+        Build the bilinear interpolator on the stored luminance table.
+
+        The C axis is extended by one point at 360° (= copy of C=0°) so
+        that angles between 345° and 360° can be interpolated without
+        hitting the upper bound of the domain.
+        """
+        c_ext = np.append(self.c_axis, 360.0)
+        table_ext = np.vstack([self.table, self.table[0:1, :]])
+        return RegularGridInterpolator(
+            (c_ext, self.g_axis),
+            table_ext,
+            method="linear",
+            bounds_error=True,
+        )
 
     # ------------------------------------------------------------------
     # Export

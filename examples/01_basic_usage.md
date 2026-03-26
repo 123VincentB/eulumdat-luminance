@@ -162,6 +162,28 @@ for a UGR grid).  Pass `g_angles` to restrict the selection:
 plot.polar("data/output/polar_65_85.svg", g_angles=[65.0, 85.0])
 ```
 
+### Print-ready output
+
+`PolarStyle.for_print()` scales all dimensions to exact physical size.
+The `font_scale` parameter increases font sizes independently of the
+diagram radius — useful when the target dpi is lower than 300.
+
+```python
+from eulumdat_luminance import PolarStyle
+
+# 10 cm at 150 dpi — fonts equivalent to Arial 9pt
+style = PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)
+plot.polar("data/output/polar_report.png", style=style)
+
+# 8 cm at 300 dpi — standard datasheet quality
+style = PolarStyle.for_print(width_cm=8, dpi=300)
+plot.polar("data/output/polar_print.png", style=style)
+```
+
+Example output (`sample_04`, 10 cm at 150 dpi, `font_scale=2.11`):
+
+![Polar luminance diagram](polar_sample04_word.png)
+
 ---
 
 ## 6. Full workflow — minimal script

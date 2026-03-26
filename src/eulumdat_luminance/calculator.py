@@ -78,10 +78,10 @@ class LuminanceCalculator:
     -----
     ::
 
-        from eulumdat_py import Ldt
+        from pyldt import LdtReader
         from eulumdat_luminance import LuminanceCalculator
 
-        ldt = Ldt.from_file("path/to/file.ldt")
+        ldt = LdtReader.read("path/to/file.ldt")
         result = LuminanceCalculator.compute(ldt, full=False)
     """
 

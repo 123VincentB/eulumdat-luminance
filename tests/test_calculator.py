@@ -146,6 +146,125 @@ class TestLuminanceResult:
 
 
 # ---------------------------------------------------------------------------
+# TestLuminanceResultAt -- interpolation unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestLuminanceResultAt:
+    """
+    Tests for LuminanceResult.at(c_deg, g_deg).
+
+    Synthetic-data tests use a 4-plane grid (C=0/90/180/270) with
+    uniform 20 cd/m² increments so interpolated values are easy to
+    predict by hand.
+    One test uses sample_04 with full=True to validate the real-world
+    use case (the primary motivation for this feature).
+    """
+
+    def _make_result(self):
+        """
+        Synthetic 4x5 table.
+        C-axis: [0, 90, 180, 270] deg
+        g-axis: [65, 70, 75, 80, 85] deg
+        Values increase linearly: table[i, j] = 1000 + 20*i + 40*j
+        """
+        c_axis = np.array([0.0, 90.0, 180.0, 270.0])
+        g_axis = np.array([65.0, 70.0, 75.0, 80.0, 85.0])
+        i_idx, j_idx = np.meshgrid(np.arange(4), np.arange(5), indexing="ij")
+        table = 1000.0 + 20.0 * i_idx + 40.0 * j_idx
+        return LuminanceResult(
+            table=table, c_axis=c_axis, g_axis=g_axis,
+            full=False, luminaire_name="SYNTH",
+        )
+
+    def test_exact_at_grid_point(self):
+        """at() returns the exact table value at a grid point."""
+        r = self._make_result()
+        for i, c in enumerate(r.c_axis):
+            for j, g in enumerate(r.g_axis):
+                assert r.at(c, g) == pytest.approx(float(r.table[i, j]))
+
+    def test_c360_equals_c0(self):
+        """C=360° interpolates identically to C=0° (wrap-around extension)."""
+        r = self._make_result()
+        for g in r.g_axis:
+            assert r.at(360.0, g) == pytest.approx(r.at(0.0, g))
+
+    def test_off_grid_between_bounding_values(self):
+        """
+        Bilinear interpolation at C=45°, γ=67.5° lies between the four
+        surrounding grid values.
+        """
+        r = self._make_result()
+        lum = r.at(45.0, 67.5)
+        # Bounding corners: C in {0, 90}, γ in {65, 70}
+        lo = min(r.table[0, 0], r.table[0, 1], r.table[1, 0], r.table[1, 1])
+        hi = max(r.table[0, 0], r.table[0, 1], r.table[1, 0], r.table[1, 1])
+        assert lo <= lum <= hi
+
+    def test_scalar_returns_float(self):
+        """Scalar inputs return a Python float."""
+        r = self._make_result()
+        result = r.at(45.0, 67.5)
+        assert isinstance(result, float)
+
+    def test_vectorized_returns_array(self):
+        """Array inputs return an ndarray; element-wise matches scalar calls."""
+        r = self._make_result()
+        c_arr = np.array([0.0, 45.0, 90.0])
+        g_arr = np.array([65.0, 67.5, 70.0])
+        result = r.at(c_arr, g_arr)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (3,)
+        for i in range(3):
+            assert result[i] == pytest.approx(r.at(c_arr[i], g_arr[i]))
+
+    def test_lazy_cache_built_once(self):
+        """_interpolator is None before the first call, then reused."""
+        r = self._make_result()
+        assert r._interpolator is None
+        r.at(45.0, 67.5)
+        first = r._interpolator
+        assert first is not None
+        r.at(90.0, 75.0)
+        assert r._interpolator is first  # same object — not rebuilt
+
+    def test_out_of_bounds_raises(self):
+        """Querying outside the γ domain raises ValueError."""
+        r = self._make_result()
+        with pytest.raises(ValueError):
+            r.at(0.0, 90.0)  # above g_axis max (85°)
+
+    def test_sample04_full_off_grid(self):
+        """
+        Real-world interpolation: C=12°, γ=67° on sample_04 (full=True).
+        Verifies that the result lies between the four bounding table values.
+        """
+        ldt_path = DATA_DIR / "sample_04.ldt"
+        if not ldt_path.exists():
+            pytest.skip(f"{ldt_path} not found")
+
+        ldt = load_ldt(ldt_path)
+        result = LuminanceCalculator.compute(ldt, full=True)
+
+        lum = result.at(c_deg=12.0, g_deg=67.0)
+
+        # Locate bounding indices
+        ic = int(np.searchsorted(result.c_axis, 12.0))   # first index >= 12°
+        ig = int(np.searchsorted(result.g_axis, 67.0))   # first index >= 67°
+        lo = min(
+            result.table[ic - 1, ig - 1], result.table[ic - 1, ig],
+            result.table[ic,     ig - 1], result.table[ic,     ig],
+        )
+        hi = max(
+            result.table[ic - 1, ig - 1], result.table[ic - 1, ig],
+            result.table[ic,     ig - 1], result.table[ic,     ig],
+        )
+        assert lo <= lum <= hi
+        assert lum > 0.0
+
+
+# ---------------------------------------------------------------------------
 # TestProjectedArea -- geometry unit tests, no LDT file needed
 # ---------------------------------------------------------------------------
 
