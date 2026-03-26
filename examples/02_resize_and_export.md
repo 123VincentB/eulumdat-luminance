@@ -45,6 +45,14 @@ plot.polar("polar_12cm.png", style=PolarStyle.for_print(width_cm=12, dpi=300))
 plot.polar("polar_12cm_web.png", style=PolarStyle.for_print(width_cm=12, dpi=150))
 ```
 
+Reference output sizes at 150 dpi:
+
+| `width_cm` | PNG width | `diagram_r` |
+|------------|-----------|-------------|
+| 8          | ~472 px   | 177         |
+| 10         | ~591 px   | 222         |
+| 12         | ~709 px   | 266         |
+
 Reference output sizes at 300 dpi:
 
 | `width_cm` | PNG width | `diagram_r` |
@@ -58,30 +66,44 @@ Reference output sizes at 300 dpi:
 
 ## Font scaling for readable print output
 
-At 300 dpi, the default font sizes are too small when the diagram is imported
-into Word or a PDF viewer.  The `font_scale` parameter multiplies all font sizes
-and the text reservation areas (title, legend, angle labels) proportionally,
-without changing the circle radius or stroke widths.
+At screen resolution the default font sizes are readable, but they become too
+small when the diagram is imported into Word or a PDF viewer.  The `font_scale`
+parameter multiplies all font sizes and the text reservation areas (title,
+legend, angle labels) proportionally, without changing the circle radius or
+stroke widths.
+
+The recommended combination for Word / PDF reports is **10 cm at 150 dpi with
+`font_scale=2.11`**, which produces fonts equivalent to Arial 9pt:
 
 ```python
-# font_scale=2.6 produces fonts equivalent to Arial 10pt at 300 dpi
-# Calculation: 10pt × 300dpi / 72 / base_font_px ≈ 2.6
+# Recommended: 10 cm at 150 dpi, fonts equivalent to Arial 9pt
+style = PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)
+plot.polar("polar_report.png", style=style)
+
+# Alternative: 8 cm at 300 dpi, fonts equivalent to Arial 10pt
 style = PolarStyle.for_print(width_cm=8, dpi=300, font_scale=2.6)
-plot.polar("polar_readable.png", style=style)
+plot.polar("polar_print.png", style=style)
 ```
 
 > **Note:** with `font_scale > 1`, the canvas becomes wider than `width_cm`
 > because the text areas grow. The circle radius and diagram content are
 > unchanged — only the surrounding whitespace for labels and title expands.
 
-Suggested values:
+The `font_scale` value for a given point size can be derived with:
 
-| Use case                         | `font_scale` |
-|----------------------------------|--------------|
-| Default (screen, no scaling)     | 1.0          |
-| Word/PDF at 300 dpi, ~Arial 8pt  | 2.0          |
-| Word/PDF at 300 dpi, ~Arial 10pt | 2.6          |
-| Word/PDF at 150 dpi, ~Arial 10pt | 1.3          |
+```
+font_scale = (pt_size × dpi / 72) / (10 × k)
+```
+
+where `k = width_px / 665` is the geometry scale factor.
+
+Suggested values (computed for the matching `width_cm` in the table above):
+
+| Use case                                    | `width_cm` | `dpi` | `font_scale` |
+|---------------------------------------------|------------|-------|--------------|
+| Screen / default (no scaling)               | any        | any   | 1.0          |
+| Word/PDF report — Arial 9pt at 150 dpi      | 10         | 150   | 2.11         |
+| Word/PDF report — Arial 10pt at 300 dpi     | 8          | 300   | 2.6          |
 
 ---
 
@@ -175,9 +197,12 @@ style = PolarStyle(
     legend_bar_width=22,
     legend_bar_height=280,
     curve_stroke_width=2.5,
-    grid_stroke_width=0.8,
-    spoke_stroke_width=0.6,
+    grid_stroke_width=1.0,
+    spoke_stroke_width=0.8,
+    outer_ring_color="#000000",   # black outer ring
+    angle_label_gap=-4,           # bring labels closer to circle
     threshold=3000.0,
+    threshold_stroke_width=1.8,
     scale=1.0,
 )
 plot.polar("polar_custom.png", style=style)
