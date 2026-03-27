@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/eulumdat-luminance.svg)](https://pypi.org/project/eulumdat-luminance/)
 [![Python](https://img.shields.io/pypi/pyversions/eulumdat-luminance.svg)](https://pypi.org/project/eulumdat-luminance/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/github/license/123VincentB/eulumdat-luminance)](https://github.com/123VincentB/eulumdat-luminance/blob/main/LICENSE)
 [![DOI](https://zenodo.org/badge/1184236889.svg)](https://doi.org/10.5281/zenodo.19223062)
 
 Luminance table generation from EULUMDAT (.ldt) photometric files — extension to [eulumdat-py](https://pypi.org/project/eulumdat-py/).
