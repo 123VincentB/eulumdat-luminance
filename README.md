@@ -12,6 +12,8 @@ Luminance table generation from EULUMDAT (.ldt) photometric files — extension 
 - Luminance table (cd/m²) computed from intensity distribution and luminous area geometry
 - UGR grid (C: 0°–345° in 15° steps, γ: 65°–85° in 5° steps) with automatic bilinear interpolation when the native LDT resolution does not match
 - Full native grid mode for detailed photometric analysis
+- `result.at(c_deg, g_deg)` — bilinear interpolation at arbitrary (C, γ) angles
+- `result.projected_area(c_deg, g_deg)` — projected luminous area (m²) at arbitrary angles, required by `eulumdat-ugr` for solid-angle computation
 - Polar luminance diagram (SVG + PNG/JPG): all 24 C-planes visible simultaneously, one curve per γ angle, blue gradient palette, optional threshold circle
 - Print-ready output via `PolarStyle.for_print(width_cm, dpi)` — exact physical dimensions for PDF/Word documents
 - CSV and JSON export
@@ -39,6 +41,12 @@ ldt    = LdtReader.read("luminaire.ldt")
 result = LuminanceCalculator.compute(ldt)
 
 print(f"{result.luminaire_name} — {result.maximum:.0f} cd/m²")
+
+# Interpolate luminance at arbitrary (C, γ)
+lum  = result.at(c_deg=12.0, g_deg=67.0)           # float, cd/m²
+
+# Projected luminous area at arbitrary (C, γ) — used by eulumdat-ugr
+area = result.projected_area(c_deg=0.0, g_deg=65.0) # float, m²
 
 plot = LuminancePlot(result)
 plot.polar("polar.svg")

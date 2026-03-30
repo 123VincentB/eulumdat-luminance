@@ -340,6 +340,129 @@ class TestProjectedArea:
 
 
 # ---------------------------------------------------------------------------
+# TestProjectedAreaMethod -- unit tests for LuminanceResult.projected_area()
+# ---------------------------------------------------------------------------
+
+
+class TestProjectedAreaMethod:
+    """
+    Tests for LuminanceResult.projected_area(c_deg, g_deg).
+
+    The method exposes the same physical model as LuminanceCalculator._projected_area
+    but operates on (C, γ) pairs rather than separate axis arrays.
+
+    Synthetic-geometry tests use hand-verifiable values.
+    One test uses sample_04 (flat rect, 1480x63 mm) to verify consistency with
+    the private static method.
+    """
+
+    def _make_result_with_geometry(
+        self,
+        a_bottom=0.36,
+        length=0.6,
+        width=0.6,
+        h_c0=0.0, h_c90=0.0, h_c180=0.0, h_c270=0.0,
+        circular=False,
+    ):
+        """Synthetic LuminanceResult with explicit geometry (no LDT needed)."""
+        c_axis = np.arange(0.0, 360.0, 15.0)
+        g_axis = np.array([65.0, 70.0, 75.0, 80.0, 85.0])
+        table = np.ones((len(c_axis), len(g_axis))) * 1000.0
+        return LuminanceResult(
+            table=table, c_axis=c_axis, g_axis=g_axis,
+            full=False, luminaire_name="GEOM-TEST",
+            _a_bottom=a_bottom, _length=length, _width=width,
+            _h_c0=h_c0, _h_c90=h_c90, _h_c180=h_c180, _h_c270=h_c270,
+            _circular=circular,
+        )
+
+    def test_no_geometry_raises(self):
+        """LuminanceResult built without geometry raises AttributeError."""
+        r = LuminanceResult(
+            table=np.ones((4, 5)), c_axis=np.array([0., 90., 180., 270.]),
+            g_axis=np.array([65., 70., 75., 80., 85.]), full=False,
+        )
+        with pytest.raises(AttributeError):
+            r.projected_area(0.0, 75.0)
+
+    def test_flat_at_nadir(self):
+        """Flat luminaire (all heights=0), γ=0°: A_proj = a_bottom."""
+        r = self._make_result_with_geometry(a_bottom=0.36)
+        assert r.projected_area(0.0, 0.0) == pytest.approx(0.36, rel=1e-6)
+
+    def test_flat_at_90deg(self):
+        """Flat luminaire, γ=90°: A_proj = 0."""
+        r = self._make_result_with_geometry(a_bottom=0.36)
+        assert r.projected_area(45.0, 90.0) == pytest.approx(0.0, abs=1e-10)
+
+    def test_height_contribution(self):
+        """600x600 mm, h_c0=100 mm, C=0°, γ=90°: A_proj = 0.6*0.1 = 0.06 m²."""
+        r = self._make_result_with_geometry(
+            a_bottom=0.36, length=0.6, width=0.6,
+            h_c0=0.1, h_c90=0.0, h_c180=0.0, h_c270=0.0,
+        )
+        assert r.projected_area(0.0, 90.0) == pytest.approx(0.06, rel=1e-5)
+
+    def test_scalar_returns_float(self):
+        """Scalar inputs must return a Python float."""
+        r = self._make_result_with_geometry()
+        result = r.projected_area(30.0, 75.0)
+        assert isinstance(result, float)
+
+    def test_vectorized_returns_array(self):
+        """Array inputs return an ndarray; element-wise matches scalar calls."""
+        r = self._make_result_with_geometry(h_c0=0.05, h_c90=0.05, h_c180=0.05, h_c270=0.05)
+        c_arr = np.array([0.0, 45.0, 90.0, 180.0])
+        g_arr = np.array([65.0, 70.0, 75.0, 80.0])
+        result = r.projected_area(c_arr, g_arr)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (4,)
+        for i in range(4):
+            assert result[i] == pytest.approx(r.projected_area(c_arr[i], g_arr[i]))
+
+    def test_circular_nadir(self):
+        """Circular D=600 mm, γ=0°: A_proj = π*(0.3)²."""
+        a_bottom = np.pi * 0.3 ** 2
+        r = self._make_result_with_geometry(
+            a_bottom=a_bottom, length=0.6, width=0.0, circular=True,
+        )
+        assert r.projected_area(0.0, 0.0) == pytest.approx(a_bottom, rel=1e-6)
+
+    def test_consistent_with_static_method(self):
+        """projected_area() must agree with LuminanceCalculator._projected_area."""
+        kw = dict(
+            a_bottom=0.09324, length=1.48, width=0.063,
+            h_c0=0.0, h_c90=0.0, h_c180=0.0, h_c270=0.0, circular=False,
+        )
+        r = self._make_result_with_geometry(**kw)
+        for c_val in [0.0, 30.0, 90.0, 180.0, 270.0]:
+            for g_val in [65.0, 75.0, 85.0]:
+                expected = LuminanceCalculator._projected_area(
+                    np.array([c_val]), np.array([g_val]), **kw
+                )[0, 0]
+                assert r.projected_area(c_val, g_val) == pytest.approx(float(expected), rel=1e-6)
+
+    @pytest.mark.skipif(not (DATA_DIR / "sample_04.ldt").exists(), reason="sample_04.ldt not found")
+    def test_sample04_at_c0_g65(self):
+        """
+        sample_04 (1480x63 mm flat): A_proj(C=0, γ=65) = 1.480*0.063*cos(65°).
+        """
+        ldt = load_ldt(DATA_DIR / "sample_04.ldt")
+        result = LuminanceCalculator.compute(ldt, full=False)
+        expected = 1.480 * 0.063 * np.cos(np.radians(65.0))
+        assert result.projected_area(0.0, 65.0) == pytest.approx(expected, rel=1e-4)
+
+    @pytest.mark.skipif(not (DATA_DIR / "sample_04.ldt").exists(), reason="sample_04.ldt not found")
+    def test_sample04_geometry_available(self):
+        """Geometry must be available after LuminanceCalculator.compute()."""
+        ldt = load_ldt(DATA_DIR / "sample_04.ldt")
+        result = LuminanceCalculator.compute(ldt, full=False)
+        assert result._a_bottom is not None
+        # No raise
+        _ = result.projected_area(0.0, 75.0)
+
+
+# ---------------------------------------------------------------------------
 # TestAllSamples -- parametrised structural invariants
 # ---------------------------------------------------------------------------
 

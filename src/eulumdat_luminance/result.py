@@ -55,6 +55,15 @@ class LuminanceResult:
         g_axis: np.ndarray,
         full: bool,
         luminaire_name: str = "",
+        *,
+        _a_bottom: "float | None" = None,
+        _length: "float | None" = None,
+        _width: "float | None" = None,
+        _h_c0: "float | None" = None,
+        _h_c90: "float | None" = None,
+        _h_c180: "float | None" = None,
+        _h_c270: "float | None" = None,
+        _circular: "bool | None" = None,
     ):
         """
         Parameters
@@ -69,6 +78,9 @@ class LuminanceResult:
             True if the table covers the full LDT angle grid.
         luminaire_name : str, optional
             Name of the luminaire.
+        _a_bottom, _length, _width, _h_c0, _h_c90, _h_c180, _h_c270, _circular :
+            Internal geometry parameters (m, bool).  Set by LuminanceCalculator;
+            required for projected_area() to work.
         """
         self.table = np.asarray(table, dtype=np.float64)
         self.c_axis = np.asarray(c_axis, dtype=np.float64)
@@ -77,6 +89,15 @@ class LuminanceResult:
         self.luminaire_name = luminaire_name
         self.maximum = float(np.max(self.table))
         self._interpolator = None  # built lazily on first call to at()
+        # Geometry — populated by LuminanceCalculator.compute()
+        self._a_bottom = _a_bottom
+        self._length = _length
+        self._width = _width
+        self._h_c0 = _h_c0
+        self._h_c90 = _h_c90
+        self._h_c180 = _h_c180
+        self._h_c270 = _h_c270
+        self._circular = _circular
 
     # ------------------------------------------------------------------
     # Interpolation
@@ -159,6 +180,77 @@ class LuminanceResult:
             method="linear",
             bounds_error=True,
         )
+
+    def projected_area(
+        self,
+        c_deg: "float | np.ndarray",
+        g_deg: "float | np.ndarray",
+    ) -> "float | np.ndarray":
+        """
+        Projected luminous area (m²) seen from direction (C, γ).
+
+        Uses the same physical model as LuminanceCalculator:
+
+            A_proj(C, γ) = A_bottom · cos(γ) + A_side(C) · sin(γ)
+
+        Supports scalar and vectorised (element-wise) inputs, matching the
+        behaviour of at().
+
+        Parameters
+        ----------
+        c_deg : float or np.ndarray
+            C-plane angle(s) in degrees.
+        g_deg : float or np.ndarray
+            γ angle(s) in degrees.
+
+        Returns
+        -------
+        float
+            For scalar inputs.
+        np.ndarray
+            For array inputs, same shape as the inputs.
+
+        Raises
+        ------
+        AttributeError
+            If the geometry is not available (result was not produced by
+            LuminanceCalculator.compute()).
+        """
+        if self._a_bottom is None:
+            raise AttributeError(
+                "Geometry not available on this LuminanceResult. "
+                "Build it via LuminanceCalculator.compute()."
+            )
+
+        scalar = np.isscalar(c_deg) and np.isscalar(g_deg)
+        c = np.atleast_1d(np.asarray(c_deg, dtype=np.float64)).ravel()
+        g = np.atleast_1d(np.asarray(g_deg, dtype=np.float64)).ravel()
+
+        c_rad = np.radians(c)
+        g_rad = np.radians(g)
+        cos_g = np.cos(g_rad)
+        sin_g = np.sin(g_rad)
+
+        a_proj = self._a_bottom * cos_g
+
+        if self._circular:
+            a_proj = a_proj + self._length * self._h_c0 * sin_g
+        else:
+            # Quadrant mapping — same as LuminanceCalculator._projected_area
+            # Q0: C < 90   h_l = C0,   h_w = C90
+            # Q1: C < 180  h_l = C180, h_w = C90
+            # Q2: C < 270  h_l = C180, h_w = C270
+            # Q3: else     h_l = C0,   h_w = C270
+            h_l = np.where(
+                c < 90.0, self._h_c0,
+                np.where(c < 270.0, self._h_c180, self._h_c0),
+            )
+            h_w = np.where(c < 180.0, self._h_c90, self._h_c270)
+            proj_l = self._length * np.abs(np.cos(c_rad))
+            proj_w = self._width * np.abs(np.sin(c_rad))
+            a_proj = a_proj + (proj_l * h_l + proj_w * h_w) * sin_g
+
+        return float(a_proj[0]) if scalar else a_proj
 
     # ------------------------------------------------------------------
     # Export

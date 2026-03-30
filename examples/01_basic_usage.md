@@ -118,7 +118,52 @@ print(lums)   # array of 3 values in cd/m²
 
 ---
 
-## 5. Export to CSV and JSON
+## 5. Projected luminous area at arbitrary angles
+
+`LuminanceResult.projected_area()` returns the projected luminous area A_proj (m²)
+seen from direction (C, γ).  It uses the same physical model as the luminance
+calculation:
+
+```
+A_proj(C, γ) = A_bottom · cos(γ) + A_side(C) · sin(γ)
+```
+
+This method is the primary integration point for `eulumdat-ugr`, which needs
+A_proj to compute the solid angle ω = A_proj / r².
+
+```python
+import numpy as np
+
+result = LuminanceCalculator.compute(ldt, full=False)
+
+# Single point — returns float (m²)
+area = result.projected_area(c_deg=0.0, g_deg=65.0)
+print(f"A_proj(C=0°, γ=65°) = {area:.6f} m²")
+
+# Batch query — returns np.ndarray, same shape as inputs
+areas = result.projected_area(
+    c_deg=np.array([0.0, 90.0, 180.0]),
+    g_deg=np.array([65.0, 75.0, 85.0]),
+)
+print(areas)   # array of 3 values in m²
+```
+
+Example output for `sample_04.ldt` (1480 × 63 mm flat luminaire):
+
+```
+A_proj(C=0°, γ=65°) = 0.039401 m²
+# Hand check: 1.480 × 0.063 × cos(65°) = 0.039401 m²  ✓
+```
+
+**Notes:**
+- Requires `full=False` or `full=True` — both work since geometry is stored
+  regardless of the angle grid.
+- Calling `projected_area()` on a `LuminanceResult` built directly (not via
+  `LuminanceCalculator.compute()`) raises `AttributeError`.
+
+---
+
+## 6. Export to CSV and JSON
 
 ```python
 result.to_csv("data/output/luminance.csv")
@@ -154,7 +199,7 @@ C \ γ (°),65.0,70.0,75.0,80.0,85.0
 
 ---
 
-## 6. Generate the polar luminance diagram
+## 7. Generate the polar luminance diagram
 
 ```python
 from eulumdat_luminance import LuminancePlot
@@ -220,7 +265,7 @@ Example output (`sample_04`, 10 cm at 150 dpi, `font_scale=2.11`):
 
 ---
 
-## 7. Full workflow — minimal script
+## 8. Full workflow — minimal script
 
 ```python
 from pathlib import Path

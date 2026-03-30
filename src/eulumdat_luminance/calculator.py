@@ -196,6 +196,14 @@ class LuminanceCalculator:
             g_axis=g_out,
             full=full,
             luminaire_name=luminaire_name,
+            _a_bottom=a_bottom,
+            _length=length,
+            _width=width,
+            _h_c0=h_c0,
+            _h_c90=h_c90,
+            _h_c180=h_c180,
+            _h_c270=h_c270,
+            _circular=circular,
         )
 
     # ------------------------------------------------------------------
