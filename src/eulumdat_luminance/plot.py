@@ -433,12 +433,14 @@ class LuminancePlot:
         g_angles : list of float, optional
             Gamma angles to draw.  Defaults to all angles in the result.
         style : PolarStyle, optional
-            Visual style and layout.  Defaults to PolarStyle().
+            Visual style and layout.  Defaults to
+            ``PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)``
+            (10 cm at 150 dpi, fonts equivalent to Arial 9pt).
         scale : float, optional
             Rasterisation scale override.  Defaults to style.scale.
         """
         if style is None:
-            style = PolarStyle()
+            style = PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)
         if g_angles is None:
             g_angles = list(self.result.g_axis)
         effective_scale = scale if scale is not None else style.scale

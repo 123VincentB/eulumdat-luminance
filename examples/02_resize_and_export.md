@@ -5,15 +5,14 @@ of the polar luminance diagram.
 
 ---
 
-## Why `for_print()` instead of pixel sizes
+## Default style and `for_print()`
 
-The default `PolarStyle()` uses a fixed SVG canvas of ~665 × 615 px with
-`scale=2.0`, producing a PNG of approximately 1330 × 1230 px.  This is fine
-for screen use but does not map to a predictable physical size in a PDF or
-Word document.
+Since v1.3.0, calling `plot.polar()` without a `style` argument uses
+`PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)` as the default —
+10 cm at 150 dpi with fonts equivalent to Arial 9pt.
 
-`PolarStyle.for_print(width_cm, dpi)` solves this by working backwards from a
-physical target size:
+Use `PolarStyle.for_print()` explicitly when you need a different physical size
+or resolution.  It works by scaling all dimensions from a target width:
 
 ```
 width_px  = width_cm / 2.54 * dpi    # target width in pixels
@@ -24,6 +23,13 @@ scale     = 1.0                      # always — no retina doubling
 
 With `scale=1.0`, one SVG user unit equals one pixel, so the PNG width in pixels
 equals `canvas_width` in SVG units, which equals `width_px`.
+
+To get the old screen-optimised rendering (large canvas, retina scale), use
+`PolarStyle()` directly:
+
+```python
+plot.polar("polar_screen.png", style=PolarStyle())   # 665 px canvas × scale 2.0
+```
 
 ---
 
@@ -242,7 +248,7 @@ out.mkdir(exist_ok=True)
 # SVG (resolution-independent, always useful to keep)
 plot.polar(out / "polar.svg")
 
-# Standard screen PNG (default style, retina)
+# Default style: 10 cm at 150 dpi, Arial 9pt equivalent
 plot.polar(out / "polar_screen.png")
 
 # Print quality for reports

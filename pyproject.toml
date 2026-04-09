@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eulumdat-luminance"
-version = "1.2.0"
+version = "1.3.0"
 description = "Luminance table generation from EULUMDAT (.ldt) photometric files — extension to eulumdat-py"
 readme = "README.md"
 license = { text = "MIT" }

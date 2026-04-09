@@ -219,8 +219,9 @@ plot.polar("data/output/polar.svg")
 ### PNG output
 
 PNG is rasterised from the SVG via `vl-convert-python`.
-The default style uses `scale=2.0` (retina): the SVG canvas is 665 × 615 px
-and the output PNG is approximately 1330 × 1230 px.
+The default style is `PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)`:
+10 cm at 150 dpi with fonts equivalent to Arial 9pt, producing a PNG of approximately
+591 × 690 px (`scale=1.0`).
 
 ```python
 plot.polar("data/output/polar.png")
@@ -243,23 +244,23 @@ plot.polar("data/output/polar_65_85.svg", g_angles=[65.0, 85.0])
 
 ### Print-ready output
 
-`PolarStyle.for_print()` scales all dimensions to exact physical size.
-The `font_scale` parameter increases font sizes independently of the
-diagram radius — useful when the target dpi is lower than 300.
+The default style already produces a print-ready diagram (10 cm at 150 dpi,
+Arial 9pt equivalent).  Use `PolarStyle.for_print()` explicitly to choose a
+different size, resolution, or font scale.
 
 ```python
 from eulumdat_luminance import PolarStyle
 
-# 10 cm at 150 dpi — fonts equivalent to Arial 9pt
-style = PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)
-plot.polar("data/output/polar_report.png", style=style)
-
 # 8 cm at 300 dpi — standard datasheet quality
 style = PolarStyle.for_print(width_cm=8, dpi=300)
 plot.polar("data/output/polar_print.png", style=style)
+
+# 12 cm at 150 dpi with larger fonts (Arial 10pt equivalent)
+style = PolarStyle.for_print(width_cm=12, dpi=150, font_scale=2.11)
+plot.polar("data/output/polar_large.png", style=style)
 ```
 
-Example output (`sample_04`, 10 cm at 150 dpi, `font_scale=2.11`):
+Example output (`sample_04`, default style — 10 cm at 150 dpi, `font_scale=2.11`):
 
 ![Polar luminance diagram](polar_sample04_word.png)
 
