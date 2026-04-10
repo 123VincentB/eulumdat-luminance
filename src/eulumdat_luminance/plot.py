@@ -447,6 +447,36 @@ class LuminancePlot:
         svg = self._build_svg(g_angles, style)
         self._export(svg, Path(path), effective_scale)
 
+    def polar_svg(
+        self,
+        g_angles: list[float] | None = None,
+        style: PolarStyle | None = None,
+    ) -> str:
+        """
+        Return a polar luminance diagram as an SVG string without writing to disk.
+
+        Intended for inline HTML embedding.  Same rendering as :meth:`polar`
+        with a ``.svg`` path, but no file I/O.
+
+        Parameters
+        ----------
+        g_angles : list of float, optional
+            Gamma angles to draw.  Defaults to all angles in the result.
+        style : PolarStyle, optional
+            Visual style and layout.  Defaults to
+            ``PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)``.
+
+        Returns
+        -------
+        str
+            SVG document as a string (starts with ``<svg``).
+        """
+        if style is None:
+            style = PolarStyle.for_print(width_cm=10, dpi=150, font_scale=2.11)
+        if g_angles is None:
+            g_angles = list(self.result.g_axis)
+        return self._build_svg(g_angles, style)
+
     # ------------------------------------------------------------------
     # SVG builder
     # ------------------------------------------------------------------

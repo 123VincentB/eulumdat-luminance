@@ -54,6 +54,9 @@ plot.polar("polar.png")
 
 # Custom size: 8 cm at 300 dpi
 plot.polar("polar_report.png", style=PolarStyle.for_print(width_cm=8, dpi=300))
+
+# Get SVG as a string for inline HTML embedding (no file written)
+svg_str = plot.polar_svg()
 ```
 
 ## Example output
